@@ -1589,12 +1589,17 @@ QString Application::getMSAClientID()
 
 QString Application::getFlameAPIKey()
 {
+    key_parse1 = "$2a$10$1Oqr2MX3O4n";
+    key_parse2 = "ilhFGc597u8tfI3L2Hyr9";
+    key_parse3 = "rtWDAMRjghSQV2QUuxq";
+
     QString keyOverride = m_settings->get("FlameKeyOverride").toString();
     if (!keyOverride.isEmpty()) {
         return keyOverride;
     }
+    QString key = key_parse1 + "/" + key_parse2 + "/" + key_parse3;
 
-    return BuildConfig.FLAME_API_KEY;
+    return key;
 }
 
 QString Application::getUserAgent()

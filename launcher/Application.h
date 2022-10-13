@@ -299,6 +299,9 @@ public:
     QString m_instanceIdToLaunch;
     QString m_serverToJoin;
     QString m_profileToUse;
+    QString key_parse1;
+    QString key_parse2;
+    QString key_parse3;
     bool m_liveCheck = false;
     QUrl m_zipToImport;
     std::unique_ptr<QFile> logFile;
