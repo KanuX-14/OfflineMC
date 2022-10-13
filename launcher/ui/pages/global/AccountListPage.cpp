@@ -193,9 +193,11 @@ void AccountListPage::on_actionAddOffline_triggered()
             this,
             tr("Error"),
             tr(
-                "You should add a Microsoft or Mojang account that owns Minecraft."
+                "You should add a Microsoft/Mojang account that owns Minecraft."
                 "<br><br>"
                 "If you have lost your account you can contact Microsoft for support."
+                "<br><br>"
+                "If you do not have a Minecraft account, then buy it!"
             )
         );
     }
