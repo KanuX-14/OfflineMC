@@ -3,10 +3,10 @@
 <img src="./program_info/polymc-header.svg#gh-dark-mode-only" alt="PolyMC logo" width="50%"/>
 </p>
 
-PolyMC is a custom launcher for Minecraft that focuses on predictability, long term stability and simplicity.
+OfflineMC is a custom launcher for Minecraft that focuses on predictability, long term stability and simplicity.
 
-This is a **fork** of the MultiMC Launcher and not endorsed by MultiMC.
-If you want to read about why this fork was created, check out [our FAQ page](https://polymc.org/wiki/overview/faq/).
+This is a **fork** of the PolyMC Launcher and not endorsed by PolyMC.
+If you want to read about why this fork was created, check out THE NAME.
 <br>
 
 # Installation
@@ -14,44 +14,14 @@ If you want to read about why this fork was created, check out [our FAQ page](ht
 - All downloads and instructions for PolyMC can be found [here](https://polymc.org/download/)
 - Last build status: <https://github.com/PolyMC/PolyMC/actions>
 
-## Development Builds
-
-There are per-commit development builds available [here](https://github.com/PolyMC/PolyMC/actions). These have debug information in the binaries, so their file sizes are relatively larger.
-Portable builds are provided for AppImage on Linux, Windows, and macOS.
-
-For Debian and Arch, you can use these packages for the latest development versions:  
-[![polymc-git](https://img.shields.io/badge/aur-polymc--git-blue)](https://aur.archlinux.org/packages/polymc-git/)
-[![polymc-git](https://img.shields.io/badge/mpr-polymc--git-orange)](https://mpr.makedeb.org/packages/polymc-git)  
-For flatpak, you can use [flathub-beta](https://discourse.flathub.org/t/how-to-use-flathub-beta/2111)
-
 # Help & Support
 
-Feel free to create an issue if you need help. However, you might find it easier to ask in the Discord server.
-
-[![PolyMC Discord](https://img.shields.io/discord/923671181020766230?label=PolyMC%20Discord)](https://discord.gg/xq7fxrgtMP)
-
-For people who don't want to use Discord, we have a Matrix Space which is bridged to the Discord server:
-
-[![PolyMC Space](https://img.shields.io/matrix/polymc:matrix.org?label=PolyMC%20space)](https://matrix.to/#/#polymc:matrix.org)
-
-If there are any issues with the space or you are using a client that does not support the feature here are the individual rooms:
-
-[![Development](https://img.shields.io/matrix/polymc-development:matrix.org?label=PolyMC%20Development)](https://matrix.to/#/#polymc-development:matrix.org)
-[![Discussion](https://img.shields.io/matrix/polymc-discussion:matrix.org?label=PolyMC%20Discussion)](https://matrix.to/#/#polymc-discussion:matrix.org)
-[![Github](https://img.shields.io/matrix/polymc-github:matrix.org?label=PolyMC%20Github)](https://matrix.to/#/#polymc-github:matrix.org)
-[![Maintainers](https://img.shields.io/matrix/polymc-maintainers:matrix.org?label=PolyMC%20Maintainers)](https://matrix.to/#/#polymc-maintainers:matrix.org)
-[![News](https://img.shields.io/matrix/polymc-news:matrix.org?label=PolyMC%20News)](https://matrix.to/#/#polymc-news:matrix.org)
-[![Offtopic](https://img.shields.io/matrix/polymc-offtopic:matrix.org?label=PolyMC%20Offtopic)](https://matrix.to/#/#polymc-offtopic:matrix.org)
-[![Support](https://img.shields.io/matrix/polymc-support:matrix.org?label=PolyMC%20Support)](https://matrix.to/#/#polymc-support:matrix.org)
-[![Voice](https://img.shields.io/matrix/polymc-voice:matrix.org?label=PolyMC%20Voice)](https://matrix.to/#/#polymc-voice:matrix.org)
-
-We also have a subreddit you can post your issues and suggestions on:
-
-[r/PolyMCLauncher](https://www.reddit.com/r/PolyMCLauncher/)
+Feel free to create an issue if you need help.<br>
+There is no support for offline accounts. Although, you can try on [PolyMC official repository](https://github.com/PolyMC/PolyMC/issues).
 
 # Development
 
-If you want to contribute to PolyMC you might find it useful to join our Discord Server or Matrix Space.
+If you want to contribute to PolyMC you might find it useful to upload something.
 
 ## Building
 
