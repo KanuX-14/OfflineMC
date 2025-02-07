@@ -112,7 +112,18 @@ void LaunchController::decideAccount()
         }
     }
 
+    bool overrideAccount = m_instance->settings()->get("OverrideAccount").toBool();
+    QString overrideAccountProfileId = m_instance->settings()->get("OverrideAccountProfileId").toString();
+
     m_accountToUse = accounts->defaultAccount();
+
+    if (overrideAccount) {
+        int overrideIndex = accounts->findAccountByProfileId(overrideAccountProfileId);
+        if (overrideIndex != -1) {
+            m_accountToUse = accounts->at(overrideIndex);
+        }
+    }
+
     if (!m_accountToUse)
     {
         // If no default account is set, ask the user which one to use.
@@ -179,7 +190,7 @@ void LaunchController::login() {
         switch(m_accountToUse->accountState()) {
             case AccountState::Offline: {
                 m_session->wants_online = false;
-                // NOTE: fallthrough is intentional
+                [[fallthrough]];
             }
             case AccountState::Online: {
                 if(!m_session->wants_online) {
@@ -212,7 +223,6 @@ void LaunchController::login() {
                         APPLICATION->settings()->set("LastOfflinePlayerName", usedname);
                     }
                     m_session->MakeOffline(usedname);
-                    // offline flavored game from here :3
                 }
                 if(m_accountToUse->ownsMinecraft()) {
                     if(!m_accountToUse->hasProfile()) {
@@ -259,7 +269,7 @@ void LaunchController::login() {
                 // This means some sort of soft error that we can fix with a refresh ... so let's refresh.
             case AccountState::Unchecked: {
                 m_accountToUse->refresh();
-                // NOTE: fallthrough intentional
+                [[fallthrough]];
             }
             case AccountState::Working: {
                 // refresh is in progress, we need to wait for it to finish to proceed.
@@ -272,12 +282,11 @@ void LaunchController::login() {
                 progDialog.execWithTask(task.get());
                 continue;
             }
-            // FIXME: this is missing - the meaning is that the account is queued for refresh and we should wait for that
-            /*
             case AccountState::Queued: {
+                // FIXME: this is missing - the meaning is that the account is queued for refresh and we should wait for that
+                qWarning() << "AccountState::Queued is not implemented";
                 return;
             }
-            */
             case AccountState::Expired: {
                 auto errorString = tr("The account has expired and needs to be logged into manually again.");
                 QMessageBox::warning(
@@ -313,6 +322,9 @@ void LaunchController::login() {
                 );
                 emitFailed(errorString);
                 return;
+            }
+            default: {
+                qWarning() << "Invalid AccountState enum";
             }
         }
     }

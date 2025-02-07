@@ -3,6 +3,7 @@
  *  PolyMC - Minecraft Launcher
  *  Copyright (c) 2022 Jamie Mansfield <jmansfield@cadixdev.org>
  *  Copyright (C) 2022 Sefa Eyeoglu <contact@scrumplex.net>
+ *  Copyright (C) 2022 Lenny McLennington <lenny@sneed.church>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -126,13 +127,17 @@ class Config {
     QString FLAME_API_KEY;
 
     /**
+     * URL to fetch the Client API key for CurseForge from
+     */
+    QString FLAME_API_KEY_API_URL;
+
+    /**
      * Metadata repository URL prefix
      */
     QString META_URL;
 
     QString BUG_TRACKER_URL;
     QString TRANSLATIONS_URL;
-    QString MATRIX_URL;
     QString DISCORD_URL;
     QString SUBREDDIT_URL;
 

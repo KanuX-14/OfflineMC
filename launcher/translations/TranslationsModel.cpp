@@ -226,7 +226,9 @@ void TranslationsModel::indexReceived()
         reloadLocalFiles();
 
         auto language = d->m_system_locale;
-        if (!findLanguage(language))
+        auto languageIterator = findLanguage(language);
+
+        if (languageIterator == decltype(languageIterator){})
         {
             language = d->m_system_language;
         }
@@ -259,7 +261,6 @@ void readIndex(const QString & path, QMap<QString, Language>& languages)
         return;
     }
 
-    int index = 1;
     try
     {
         auto toplevel_doc = Json::requireDocument(data);
@@ -292,7 +293,6 @@ void readIndex(const QString & path, QMap<QString, Language>& languages)
             lang.file_size = Json::requireInteger(langObj, "size");
 
             languages.insert(lang.key, lang);
-            index++;
         }
     }
     catch (Json::JsonException & e)
@@ -418,8 +418,6 @@ QVariant TranslationsModel::data(const QModelIndex& index, int role) const
         return QVariant();
 
     int row = index.row();
-    auto column = static_cast<Column>(index.column());
-
     if (row < 0 || row >= d->m_languages.size())
         return QVariant();
 
@@ -428,22 +426,19 @@ QVariant TranslationsModel::data(const QModelIndex& index, int role) const
     {
     case Qt::DisplayRole:
     {
+        auto column = static_cast<Column>(index.column());
         switch(column)
         {
-            case Column::Language:
-            {
+            case Column::Language: 
                 return lang.languageName();
-            }
-            case Column::Completeness:
-            {
+            case Column::Completeness: 
                 return QString("%1%").arg(lang.percentTranslated(), 3, 'f', 1);
-            }
+            default: 
+                return QVariant();
         }
     }
     case Qt::ToolTipRole:
-    {
         return tr("%1:\n%2 translated\n%3 fuzzy\n%4 total").arg(lang.key, QString::number(lang.translated), QString::number(lang.fuzzy), QString::number(lang.total));
-    }
     case Qt::UserRole:
         return lang.key;
     default:
@@ -495,7 +490,7 @@ int TranslationsModel::columnCount(const QModelIndex& parent) const
     return 2;
 }
 
-Language * TranslationsModel::findLanguage(const QString& key)
+QVector<Language>::iterator TranslationsModel::findLanguage(const QString& key)
 {
     auto found = std::find_if(d->m_languages.begin(), d->m_languages.end(), [&](Language & lang)
     {
@@ -503,7 +498,7 @@ Language * TranslationsModel::findLanguage(const QString& key)
     });
     if(found == d->m_languages.end())
     {
-        return nullptr;
+        return {};
     }
     else
     {
@@ -514,21 +509,21 @@ Language * TranslationsModel::findLanguage(const QString& key)
 bool TranslationsModel::selectLanguage(QString key)
 {
     QString &langCode = key;
-    auto langPtr = findLanguage(key);
+    auto langIterator = findLanguage(key);
 
     if (langCode.isEmpty())
     {
         d->no_language_set = true;
     }
 
-    if(!langPtr)
+    if (langIterator == decltype(langIterator){})
     {
         qWarning() << "Selected invalid language" << key << ", defaulting to" << defaultLangCode;
         langCode = defaultLangCode;
     }
     else
     {
-        langCode = langPtr->key;
+        langCode = langIterator->key;
     }
 
     // uninstall existing translators if there are any
@@ -580,7 +575,7 @@ bool TranslationsModel::selectLanguage(QString key)
         d->m_qt_translator.reset();
     }
 
-    if(langPtr->localFileType == FileType::PO)
+    if(langIterator->localFileType == FileType::PO)
     {
         qDebug() << "Loading Application Language File for" << langCode.toLocal8Bit().constData() << "...";
         auto poTranslator = new POTranslator(FS::PathCombine(d->m_dir.path(), langCode + ".po"));
@@ -603,7 +598,7 @@ bool TranslationsModel::selectLanguage(QString key)
             d->m_app_translator.reset();
         }
     }
-    else if(langPtr->localFileType == FileType::QM)
+    else if(langIterator->localFileType == FileType::QM)
     {
         d->m_app_translator.reset(new QTranslator());
         if (d->m_app_translator->load("mmc_" + langCode, d->m_dir.path()))
@@ -635,7 +630,7 @@ bool TranslationsModel::selectLanguage(QString key)
 QModelIndex TranslationsModel::selectedIndex()
 {
     auto found = findLanguage(d->m_selectedLanguage);
-    if(found)
+    if(found != decltype(found){})
     {
         // QVector iterator freely converts to pointer to contained type
         return index(found - d->m_languages.begin(), 0, QModelIndex());
@@ -673,7 +668,7 @@ void TranslationsModel::updateLanguage(QString key)
         return;
     }
     auto found = findLanguage(key);
-    if(!found)
+    if(found == decltype(found){})
     {
         qWarning() << "Cannot update invalid language" << key;
         return;
@@ -692,7 +687,7 @@ void TranslationsModel::downloadTranslation(QString key)
         return;
     }
     auto lang = findLanguage(key);
-    if(!lang)
+    if(lang == decltype(lang){})
     {
         qWarning() << "Will not download an unknown translation" << key;
         return;

@@ -45,6 +45,8 @@
 #include <QTextStream>
 #include <QUrl>
 
+#include <system_error>
+
 #if defined Q_OS_WIN32
 #include <objbase.h>
 #include <objidl.h>
@@ -59,7 +61,24 @@
 #include <utime.h>
 #endif
 
+// Snippet from https://github.com/gulrak/filesystem#using-it-as-single-file-header
+
+#ifdef __APPLE__
+#include <Availability.h> // for deployment target to support pre-catalina targets without std::fs
+#endif // __APPLE__
+
+#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || (defined(__cplusplus) && __cplusplus >= 201703L)) && defined(__has_include)
+#if __has_include(<filesystem>) && (!defined(__MAC_OS_X_VERSION_MIN_REQUIRED) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101500)
+#define GHC_USE_STD_FS
 #include <filesystem>
+namespace fs = std::filesystem;
+#endif // MacOS min version check
+#endif // Other OSes version check
+
+#ifndef GHC_USE_STD_FS
+#include <ghc/filesystem.hpp>
+namespace fs = ghc::filesystem;
+#endif
 
 #if defined Q_OS_WIN32
 
@@ -136,18 +155,22 @@ bool ensureFilePathExists(QString filenamepath)
     return success;
 }
 
-bool ensureFolderPathExists(QString foldernamepath)
+bool ensureFolderPathExists(const QFileInfo folderPath)
 {
-    QFileInfo a(foldernamepath);
     QDir dir;
-    QString ensuredPath = a.filePath();
+    QString ensuredPath = folderPath.filePath();
     bool success = dir.mkpath(ensuredPath);
     return success;
 }
 
+bool ensureFolderPathExists(const QString folderPathName)
+{
+    return ensureFolderPathExists(QFileInfo(folderPathName));
+}
+
 bool copy::operator()(const QString& offset)
 {
-    using copy_opts = std::filesystem::copy_options;
+    using copy_opts = fs::copy_options;
 
 // NOTE always deep copy on windows. the alternatives are too messy.
 #if defined Q_OS_WIN32
@@ -157,36 +180,57 @@ bool copy::operator()(const QString& offset)
     auto src = PathCombine(m_src.absolutePath(), offset);
     auto dst = PathCombine(m_dst.absolutePath(), offset);
 
-    std::error_code err;
+    std::error_code err{};
 
-    std::filesystem::copy_options opt = copy_opts::none;
+    fs::copy_options opt = copy_opts::none;
 
     // The default behavior is to follow symlinks
     if (!m_followSymlinks)
         opt |= copy_opts::copy_symlinks;
 
+    const auto testAndCopy = [opt, &err](const QString& s, const QString& d) {
+        if (ensureFilePathExists(d)) {
+            fs::copy(toStdString(s), toStdString(d), opt, err);
+        } else {
+            // mkpath failed which means the destination directory doesn't exist.
+            err = std::make_error_code(std::errc::no_such_file_or_directory);
+        }
+
+        if (err) {
+            qWarning() << "Failed to copy files:" << QString::fromStdString(err.message());
+            qDebug() << "Source file:" << s;
+            qDebug() << "Destination file:" << d;
+        }
+    };
 
     // We can't use copy_opts::recursive because we need to take into account the
     // blacklisted paths, so we iterate over the source directory, and if there's no blacklist
     // match, we copy the file.
-    QDir src_dir(src);
-    QDirIterator source_it(src, QDir::Filter::Files, QDirIterator::Subdirectories);
+    if (QDir src_dir(src); src_dir.exists()) {
+        QDirIterator source_it(src, QDir::Filter::Files | QDir::Filter::Hidden, QDirIterator::Subdirectories);
 
-    while (source_it.hasNext()) {
-        auto src_path = source_it.next();
-        auto relative_path = src_dir.relativeFilePath(src_path);
+        while (source_it.hasNext()) {
+            auto src_path = source_it.next();
+            auto relative_path = src_dir.relativeFilePath(src_path);
 
-        if (m_blacklist && m_blacklist->matches(relative_path))
-            continue;
+            auto dst_path = PathCombine(dst, relative_path);
 
-        auto dst_path = PathCombine(dst, relative_path);
-        ensureFilePathExists(dst_path);
+            if (m_blacklist && m_blacklist->matches(relative_path)) {
+                qDebug() << "Attempted to copy blacklisted file:";
+                qDebug() << "Source file:" << src_path;
+                qDebug() << "Destination file:" << dst_path;
+                continue;
+            }
 
-        std::filesystem::copy(toStdString(src_path), toStdString(dst_path), opt, err);
-        if (err) {
-            qWarning() << "Failed to copy files:" << QString::fromStdString(err.message());
-            qDebug() << "Source file:" << src_path;
-            qDebug() << "Destination file:" << dst_path;
+            testAndCopy(src_path, dst_path);
+        }
+    } else { // src_dir could still be a file, try to copy it directly.
+        if (m_blacklist && m_blacklist->matches(src)){
+            qDebug() << "Attempted to copy blacklisted file:";
+            qDebug() << "Source file:" << src;
+            qDebug() << "Destination file:" << dst;
+        } else {
+            testAndCopy(src, dst);
         }
     }
 
@@ -197,7 +241,7 @@ bool deletePath(QString path)
 {
     std::error_code err;
 
-    std::filesystem::remove_all(toStdString(path), err);
+    fs::remove_all(toStdString(path), err);
 
     if (err) {
         qWarning() << "Failed to remove files:" << QString::fromStdString(err.message());
@@ -323,7 +367,7 @@ QString getDesktopDir()
 // Cross-platform Shortcut creation
 bool createShortCut(QString location, QString dest, QStringList args, QString name, QString icon)
 {
-#if defined(Q_OS_LINUX) || defined(Q_OS_FREEBSD)
+#if !defined(Q_OS_WIN) && !defined(Q_OS_OSX)
     location = PathCombine(location, name + ".desktop");
 
     QFile f(location);
@@ -349,49 +393,35 @@ bool createShortCut(QString location, QString dest, QStringList args, QString na
     f.setPermissions(f.permissions() | QFileDevice::ExeOwner | QFileDevice::ExeGroup | QFileDevice::ExeOther);
 
     return true;
-#elif defined Q_OS_WIN
-    // TODO: Fix
-    //    QFile file(PathCombine(location, name + ".lnk"));
-    //    WCHAR *file_w;
-    //    WCHAR *dest_w;
-    //    WCHAR *args_w;
-    //    file.fileName().toWCharArray(file_w);
-    //    dest.toWCharArray(dest_w);
-
-    //    QString argStr;
-    //    for (int i = 0; i < args.count(); i++)
-    //    {
-    //        argStr.append(args[i]);
-    //        argStr.append(" ");
-    //    }
-    //    argStr.toWCharArray(args_w);
-
-    //    return SUCCEEDED(CreateLink(file_w, dest_w, args_w));
-    return false;
 #else
     qWarning("Desktop Shortcuts not supported on your platform!");
     return false;
 #endif
 }
 
-bool overrideFolder(QString overwritten_path, QString override_path)
+bool mergeFolders(QString dstpath, QString srcpath)
 {
-    using copy_opts = std::filesystem::copy_options;
-
-    if (!FS::ensureFolderPathExists(overwritten_path))
-        return false;
-
-    std::error_code err;
-    std::filesystem::copy_options opt = copy_opts::recursive | copy_opts::overwrite_existing;
-
-    std::filesystem::copy(toStdString(override_path), toStdString(overwritten_path), opt, err);
-
-    if (err) {
-        qCritical() << QString("Failed to apply override from %1 to %2").arg(override_path, overwritten_path);
-        qCritical() << "Reason:" << QString::fromStdString(err.message());
+    std::error_code ec;
+    fs::path fullSrcPath = srcpath.toStdString();
+    fs::path fullDstPath = dstpath.toStdString();
+    for (auto& entry : fs::recursive_directory_iterator(fullSrcPath))
+    {
+        fs::path relativeChild = fs::relative(entry, fullSrcPath);
+        if (entry.is_directory())
+            if (!fs::exists(fullDstPath / relativeChild))
+                fs::create_directory(fullDstPath / relativeChild);
+        if (entry.is_regular_file())
+        {
+            fs::path childDst = fullDstPath / relativeChild;
+            if (fs::exists(childDst))
+                fs::remove(childDst);
+            fs::copy(entry, childDst, fs::copy_options::none, ec);
+            if (ec.value() != 0)
+                qCritical() << QString("File copy failed with: %1. File was %2 -> %3").arg(QString::fromStdString(ec.message()), entry.path().c_str(), childDst.c_str());
+        }
     }
 
-    return err.value() == 0;
+    return ec.value() == 0;
 }
 
 }

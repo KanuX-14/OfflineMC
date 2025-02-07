@@ -199,7 +199,7 @@ void WorldListPage::on_actionRemove_triggered()
 
 void WorldListPage::on_actionView_Folder_triggered()
 {
-    DesktopServices::openDirectory(m_worlds->dir().absolutePath(), true);
+    DesktopServices::openPath(m_worlds->dir().absolutePath(), true);
 }
 
 void WorldListPage::on_actionDatapacks_triggered()
@@ -216,7 +216,7 @@ void WorldListPage::on_actionDatapacks_triggered()
 
     auto fullPath = m_worlds->data(index, WorldList::FolderRole).toString();
 
-    DesktopServices::openDirectory(FS::PathCombine(fullPath, "datapacks"), true);
+    DesktopServices::openPath(FS::PathCombine(fullPath, "datapacks"), true);
 }
 
 
@@ -312,28 +312,22 @@ void WorldListPage::mceditError()
 
 void WorldListPage::mceditState(LoggedProcess::State state)
 {
-    bool failed = false;
     switch(state)
     {
         case LoggedProcess::NotRunning:
         case LoggedProcess::Starting:
             return;
+        case LoggedProcess::Running:
+        case LoggedProcess::Finished:
+            m_mceditStarting = false;
+            return;
         case LoggedProcess::FailedToStart:
         case LoggedProcess::Crashed:
         case LoggedProcess::Aborted:
-        {
-            failed = true;
-        }
-        case LoggedProcess::Running:
-        case LoggedProcess::Finished:
-        {
-            m_mceditStarting = false;
-            break;
-        }
-    }
-    if(failed)
-    {
-        mceditError();
+            mceditError();
+            return;
+        default:
+            qWarning() << "Invalid MCEdit state";
     }
 }
 

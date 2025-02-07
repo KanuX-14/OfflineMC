@@ -33,8 +33,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 include(GenerateExportHeader)
 set(CMAKE_CXX_FLAGS "-Wall -pedantic -fstack-protector-strong --param=ssp-buffer-size=4 ${CMAKE_CXX_FLAGS}")
-if(UNIX AND APPLE)
-    set(CMAKE_CXX_FLAGS "-stdlib=libc++ ${CMAKE_CXX_FLAGS}")
+
+# Increases the stack size to 8MB for Windows, only when not building in Debug mode
+# because we don't want random users being affected by stack overflows in release builds,
+# but it's fine in debug builds for finding and fixing them
+if((NOT CMAKE_BUILD_TYPE STREQUAL "Debug") AND WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "-Wl,--stack,8388608 ${CMAKE_EXE_LINKER_FLAGS}")
 endif()
 
 # Fix build with Qt 5.13
@@ -79,7 +83,7 @@ set(Launcher_NEWS_OPEN_URL "https://polymc.org/news" CACHE STRING "URL that gets
 set(Launcher_HELP_URL "https://polymc.org/wiki/help-pages/%1" CACHE STRING "URL (with arg %1 to be substituted with page-id) that gets opened when the user requests help")
 
 ######## Set version numbers ########
-set(Launcher_VERSION_MAJOR 5)
+set(Launcher_VERSION_MAJOR 6)
 set(Launcher_VERSION_MINOR 0)
 
 set(Launcher_VERSION_NAME "${Launcher_VERSION_MAJOR}.${Launcher_VERSION_MINOR}")
@@ -104,9 +108,6 @@ set(Launcher_BUG_TRACKER_URL "https://github.com/PolyMC/PolyMC/issues" CACHE STR
 # Translations Platform URL
 set(Launcher_TRANSLATIONS_URL "https://hosted.weblate.org/projects/polymc/polymc/" CACHE STRING "URL for the translations platform.")
 
-# Matrix Space
-set(Launcher_MATRIX_URL "https://matrix.to/#/#polymc:matrix.org" CACHE STRING "URL to the Matrix Space")
-
 # Discord URL
 set(Launcher_DISCORD_URL "https://discord.gg/Z52pwxWCHP" CACHE STRING "URL for the Discord guild.")
 
@@ -128,11 +129,11 @@ set(Launcher_QT_VERSION_MAJOR "5" CACHE STRING "Major Qt version to build agains
 # https://docs.microsoft.com/en-us/legal/microsoft-identity-platform/terms-of-use
 set(Launcher_MSA_CLIENT_ID "" CACHE STRING "Client ID you can get from Microsoft Identity Platform when you register an application")
 
-# By using this key in your builds you accept the terms and conditions laid down in
-# https://support.curseforge.com/en/support/solutions/articles/9000207405-curse-forge-3rd-party-api-terms-and-conditions
-# NOTE: CurseForge requires you to change this if you make any kind of derivative work.
 set(Launcher_CURSEFORGE_API_KEY "" CACHE STRING "API key for the CurseForge platform")
+set(Launcher_CURSEFORGE_API_KEY_API_URL "https://cf.polymc.org/api" CACHE STRING "URL to fetch the Curseforge API key from.")
 
+# Enable artificial DRM beyond what is forced by Mojang
+set(Launcher_STRICT_DRM OFF CACHE BOOL "Enables artificial DRM, beyond what is done by Mojang, that prevents you from using offline mode or custom yggdrasil without having a valid Minecraft account added first. This shouldn't need to be enabled unless you're distributing the software on some repo that would require you to enable it.")
 
 #### Check the current Git commit and branch
 include(GetGitRevisionDescription)
@@ -146,13 +147,21 @@ message(STATUS "Git refspec: ${Launcher_GIT_REFSPEC}")
 string(TIMESTAMP TODAY "%Y-%m-%d")
 set(Launcher_BUILD_TIMESTAMP "${TODAY}")
 
+############################ Macro Definitions #############################
+
+if (Launcher_STRICT_DRM)
+    message("Strict DRM is enabled.")
+    set(Launcher_APP_BINARY_DEFS ${Launcher_APP_BINARY_DEFS} LAUNCHER_STRICT_DRM)
+endif()
+
 ################################ 3rd Party Libs ################################
 
 # Find the required Qt parts
 include(QtVersionlessBackport)
 if(Launcher_QT_VERSION_MAJOR EQUAL 5)
     set(QT_VERSION_MAJOR 5)
-    find_package(Qt5 REQUIRED COMPONENTS Core Widgets Concurrent Network Test Xml)
+    find_package(Qt5 REQUIRED COMPONENTS Core Widgets Concurrent Network Test
+      Xml Charts)
 
     if(NOT Launcher_FORCE_BUNDLED_LIBS)
         find_package(QuaZip-Qt5 1.3 QUIET)
@@ -166,7 +175,8 @@ if(Launcher_QT_VERSION_MAJOR EQUAL 5)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUNICODE -D_UNICODE")
 elseif(Launcher_QT_VERSION_MAJOR EQUAL 6)
     set(QT_VERSION_MAJOR 6)
-    find_package(Qt6 REQUIRED COMPONENTS Core Widgets Concurrent Network Test Xml Core5Compat)
+    find_package(Qt6 REQUIRED COMPONENTS Core Widgets Concurrent Network Test
+      Xml Charts Core5Compat)
     list(APPEND Launcher_QT_LIBS Qt6::Core5Compat)
 
     if(NOT Launcher_FORCE_BUNDLED_LIBS)
@@ -192,9 +202,12 @@ if (Qt5_POSITION_INDEPENDENT_CODE)
     SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
-# Find toml++
 if(NOT Launcher_FORCE_BUNDLED_LIBS)
+    # Find toml++
     find_package(tomlplusplus 3.2.0 QUIET)
+
+    # Find ghc_filesystem
+    find_package(ghc_filesystem QUIET)
 endif()
 
 ####################################### Program Info #######################################
@@ -228,7 +241,7 @@ if(UNIX AND APPLE)
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${Launcher_VERSION_NAME}")
     set(MACOSX_BUNDLE_LONG_VERSION_STRING "${Launcher_VERSION_NAME}")
     set(MACOSX_BUNDLE_ICON_FILE ${Launcher_Name}.icns)
-    set(MACOSX_BUNDLE_COPYRIGHT "Copyright 2021-2022 ${Launcher_Copyright}")
+    set(MACOSX_BUNDLE_COPYRIGHT "Copyright 2021-2024 ${Launcher_Copyright}")
     set(MACOSX_SPARKLE_UPDATE_PUBLIC_KEY "idALcUIazingvKSSsEa9U7coDVxZVx/ORpOEE/QtJfg=")
     set(MACOSX_SPARKLE_UPDATE_FEED_URL "https://polymc.org/feed/appcast.xml")
 
@@ -305,7 +318,6 @@ add_subdirectory(libraries/systeminfo) # system information library
 add_subdirectory(libraries/hoedown) # markdown parser
 add_subdirectory(libraries/launcher) # java based launcher part for Minecraft
 add_subdirectory(libraries/javacheck) # java compatibility checker
-add_subdirectory(libraries/xz-embedded) # xz compression
 if (FORCE_BUNDLED_QUAZIP)
     message(STATUS "Using bundled QuaZip")
     set(BUILD_SHARED_LIBS 0)  # link statically to avoid conflicts.
@@ -316,7 +328,6 @@ else()
 endif()
 add_subdirectory(libraries/rainbow) # Qt extension for colors
 add_subdirectory(libraries/LocalPeer) # fork of a library from Qt solutions
-add_subdirectory(libraries/classparser) # class parser library
 if(NOT tomlplusplus_FOUND)
     message(STATUS "Using bundled tomlplusplus")
     add_subdirectory(libraries/tomlplusplus) # toml parser
@@ -326,6 +337,14 @@ endif()
 add_subdirectory(libraries/katabasis) # An OAuth2 library that tried to do too much
 add_subdirectory(libraries/gamemode)
 add_subdirectory(libraries/murmur2) # Hash for usage with the CurseForge API
+if (NOT ghc_filesystem_FOUND)
+    message(STATUS "Using bundled ghc_filesystem")
+    set(GHC_FILESYSTEM_WITH_INSTALL OFF) # Workaround ghc::filesystem bug
+    add_subdirectory(libraries/filesystem) # Implementation of std::filesystem for old C++, for usage in old macOS
+    add_library(ghcFilesystem::ghc_filesystem ALIAS ghc_filesystem)
+else()
+    message(STATUS "Using system ghc_filesystem")
+endif()
 
 ############################### Built Artifacts ###############################
 

@@ -240,6 +240,9 @@ void VersionPage::updateVersionControls()
 
     ui->actionInstall_Forge->setEnabled(controlsEnabled);
 
+    bool supportsNeoForge = minecraftVersion >= Version("1.20.1");
+    ui->actionInstall_NeoForge->setEnabled(controlsEnabled && supportsNeoForge);
+
     bool supportsFabric = minecraftVersion >= Version("1.14");
     ui->actionInstall_Fabric->setEnabled(controlsEnabled && supportsFabric);
 
@@ -422,8 +425,7 @@ void VersionPage::on_actionChange_version_triggered()
 
 void VersionPage::on_actionDownload_All_triggered()
 {
-    if (!APPLICATION->accounts()->anyAccountIsValid())
-    {
+    if (!APPLICATION->accounts()->drmCheck()) {
         CustomMessageBox::selectable(
             this, tr("Error"),
             tr("Cannot download Minecraft or update instances unless you have at least "
@@ -467,6 +469,35 @@ void VersionPage::on_actionInstall_Forge_triggered()
     {
         auto vsn = vselect.selectedVersion();
         m_profile->setComponentVersion("net.minecraftforge", vsn->descriptor());
+        m_profile->resolve(Net::Mode::Online);
+        // m_profile->installVersion();
+        preselect(m_profile->rowCount(QModelIndex())-1);
+        m_container->refreshContainer();
+    }
+}
+
+void VersionPage::on_actionInstall_NeoForge_triggered()
+{
+    auto vlist = APPLICATION->metadataIndex()->get("net.neoforged.neoforge");
+    if(!vlist)
+    {
+        return;
+    }
+    VersionSelectDialog vselect(vlist.get(), tr("Select NeoForge version"), this);
+    vselect.setExactFilter(BaseVersionList::ParentVersionRole, m_profile->getComponentVersion("net.minecraft"));
+    vselect.setEmptyString(tr("No NeoForge versions are currently available for Minecraft ") + m_profile->getComponentVersion("net.minecraft"));
+    vselect.setEmptyErrorString(tr("Couldn't load or download the NeoForge version lists!"));
+
+    auto currentVersion = m_profile->getComponentVersion("net.neoforged.neoforge");
+    if(!currentVersion.isEmpty())
+    {
+        vselect.setCurrentVersion(currentVersion);
+    }
+
+    if (vselect.exec() && vselect.selectedVersion())
+    {
+        auto vsn = vselect.selectedVersion();
+        m_profile->setComponentVersion("net.neoforged.neoforge", vsn->descriptor());
         m_profile->resolve(Net::Mode::Online);
         // m_profile->installVersion();
         preselect(m_profile->rowCount(QModelIndex())-1);
@@ -577,12 +608,12 @@ void VersionPage::on_actionInstall_LiteLoader_triggered()
 
 void VersionPage::on_actionLibrariesFolder_triggered()
 {
-    DesktopServices::openDirectory(m_inst->getLocalLibraryPath(), true);
+    DesktopServices::openPath(m_inst->getLocalLibraryPath(), true);
 }
 
 void VersionPage::on_actionMinecraftFolder_triggered()
 {
-    DesktopServices::openDirectory(m_inst->gameRoot(), true);
+    DesktopServices::openPath(m_inst->gameRoot(), true);
 }
 
 void VersionPage::versionCurrent(const QModelIndex &current, const QModelIndex &previous)

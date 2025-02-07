@@ -159,8 +159,8 @@ void LauncherPage::on_instDirBrowseBtn_clicked()
             if (result == QMessageBox::Ok)
             {
                 ui->instDirTextBox->setText(cooked_dir);
-            } 
-        } 
+            }
+        }
         else
         {
             ui->instDirTextBox->setText(cooked_dir);
@@ -317,6 +317,16 @@ void LauncherPage::applySettings()
         break;
     }
 
+    if(s->get("CatStyle") != ui->themeComboBoxCat->currentText())
+    {
+        s->set("CatStyle", ui->themeComboBoxCat->currentText());
+    }
+
+    if(s->get("CatPosition") != ui->themeComboBoxCatPosition->currentData())
+    {
+      s->set("CatPosition", ui->themeComboBoxCatPosition->currentData());
+    }
+
     if(original != s->get("IconTheme"))
     {
         APPLICATION->setIconTheme(s->get("IconTheme").toString());
@@ -362,6 +372,7 @@ void LauncherPage::applySettings()
 
     // Mods
     s->set("ModMetadataDisabled", ui->metadataDisableBtn->isChecked());
+    s->set("DefaultModPlatform", ui->modPlatform->currentText());
 }
 void LauncherPage::loadSettings()
 {
@@ -430,6 +441,36 @@ void LauncherPage::loadSettings()
             }
             idx++;
         }
+
+        //TODO: Don't make it hardcoded via strings
+        auto currentCatStyle = s->get("CatStyle").toString();
+        ui->themeComboBoxCat->addItem("BackgroundCat");
+        ui->themeComboBoxCat->addItem("Jinx");
+        ui->themeComboBoxCat->addItem("Floppa");
+        ui->themeComboBoxCat->addItem("Manul");
+
+        if(currentCatStyle == "Manul")
+            ui->themeComboBoxCat->setCurrentIndex(3);
+        else if(currentCatStyle == "Floppa")
+            ui->themeComboBoxCat->setCurrentIndex(2);
+        else if(currentCatStyle == "Jinx")
+            ui->themeComboBoxCat->setCurrentIndex(1);
+        else
+            ui->themeComboBoxCat->setCurrentIndex(0);
+
+        auto currentCatPosition = s->get("CatPosition").toString();
+        ui->themeComboBoxCatPosition->addItem(tr("Top Left"), "top left");
+        ui->themeComboBoxCatPosition->addItem(tr("Top Right"), "top right");
+        ui->themeComboBoxCatPosition->addItem(tr("Bottom Left"), "bottom left");
+        ui->themeComboBoxCatPosition->addItem(tr("Bottom Right"), "bottom right");
+        if (currentCatPosition == "top left")
+          ui->themeComboBoxCatPosition->setCurrentIndex(0);
+        else if (currentCatPosition == "bottom left")
+          ui->themeComboBoxCatPosition->setCurrentIndex(2);
+        else if (currentCatPosition == "bottom right")
+          ui->themeComboBoxCatPosition->setCurrentIndex(3);
+        else
+          ui->themeComboBoxCatPosition->setCurrentIndex(1);
     }
 
     // Toolbar/menu bar settings (not applicable if native menu bar is present)
@@ -477,6 +518,7 @@ void LauncherPage::loadSettings()
     // Mods
     ui->metadataDisableBtn->setChecked(s->get("ModMetadataDisabled").toBool());
     ui->metadataWarningLabel->setHidden(!ui->metadataDisableBtn->isChecked());
+    ui->modPlatform->setCurrentText(s->get("DefaultModPlatform").toString());
 }
 
 void LauncherPage::refreshFontPreview()

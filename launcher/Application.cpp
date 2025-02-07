@@ -97,6 +97,8 @@
 #include "icons/IconList.h"
 #include "net/HttpMetaCache.h"
 
+#include "ui/GuiUtil.h"
+
 #include "java/JavaUtils.h"
 
 #include "updater/UpdateChecker.h"
@@ -589,6 +591,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 
         // Minecraft mods
         m_settings->registerSetting("ModMetadataDisabled", false);
+        m_settings->registerSetting("DefaultModPlatform", "Modrinth");
 
         // Minecraft offline player name
         m_settings->registerSetting("LastOfflinePlayerName", "");
@@ -602,6 +605,8 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 
         // The cat
         m_settings->registerSetting("TheCat", false);
+        m_settings->registerSetting("CatStyle", "BackgroundCat");
+        m_settings->registerSetting("CatPosition", "top right");
 
         m_settings->registerSetting("InstSortMode", "Name");
         m_settings->registerSetting("SelectedInstance", QString());
@@ -668,6 +673,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
                 m_settings->set("FlameKeyOverride", flameKey);
             m_settings->reset("CFKeyOverride");
         }
+        m_settings->registerSetting("FlameKeyShouldBeFetchedOnStartup", true);
         m_settings->registerSetting("UserAgentOverride", "");
 
         // Init page provider
@@ -813,6 +819,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
         m_metacache->addBase("translations", QDir("translations").absolutePath());
         m_metacache->addBase("icons", QDir("cache/icons").absolutePath());
         m_metacache->addBase("meta", QDir("meta").absolutePath());
+        m_metacache->addBase("authlibinjector", QDir("cache/authlibinjector").absolutePath());
         m_metacache->Load();
         qDebug() << "<> Cache initialized.";
     }
@@ -949,6 +956,7 @@ void Application::setupWizardFinished(int status)
 void Application::performMainStartupAction()
 {
     m_status = Application::Initialized;
+
     if(!m_instanceIdToLaunch.isEmpty())
     {
         auto inst = instances()->getInstanceById(m_instanceIdToLaunch);
@@ -978,6 +986,32 @@ void Application::performMainStartupAction()
             return;
         }
     }
+
+    {
+        bool shouldFetch = m_settings->get("FlameKeyShouldBeFetchedOnStartup").toBool();
+        if (!BuildConfig.FLAME_API_KEY_API_URL.isEmpty() && shouldFetch && !(capabilities() & Capability::SupportsFlame))
+        {
+            auto response = QMessageBox::question(nullptr,
+                                                  tr("Curseforge Core API Key"),
+                                                  tr("Should PolyMC try to fetch the Official Curseforge Launcher's API Key? "
+                                                     "Using this key technically breaks Curseforge's Terms of Service, but this distribution of PolyMC "
+                                                     "does not come with a Curseforge API key by default, so without this key or another valid API key, "
+                                                     "which you can always change in the settings, you won't be able to download Curseforge modpacks."),
+                                                  QMessageBox::Yes | QMessageBox::No);
+
+            if (response == QMessageBox::Yes)
+            {
+                QString apiKey = GuiUtil::fetchFlameKey();
+                if (!apiKey.isEmpty())
+                {
+                    m_settings->set("FlameKeyOverride", apiKey);
+                    updateCapabilities();
+                }
+            }
+        }
+        m_settings->set("FlameKeyShouldBeFetchedOnStartup", false);
+    }
+
     if(!m_mainWindow)
     {
         // normal main window
@@ -1136,9 +1170,9 @@ void Application::setApplicationTheme(const QString& name, bool initial)
 #ifdef Q_OS_WIN
         if (m_mainWindow) {
             if (QString::compare(theme->id(), "dark") == 0) {
-                    WinDarkmode::setDarkWinTitlebar(m_mainWindow->winId(), true);
+                    WinDarkmode::setWindowDarkModeEnabled((HWND)m_mainWindow->winId(), true);
             } else {
-                    WinDarkmode::setDarkWinTitlebar(m_mainWindow->winId(), false);
+                    WinDarkmode::setWindowDarkModeEnabled((HWND)m_mainWindow->winId(), false);
             }
         }
 #endif
@@ -1376,9 +1410,9 @@ MainWindow* Application::showMainWindow(bool minimized)
         m_mainWindow->restoreGeometry(QByteArray::fromBase64(APPLICATION->settings()->get("MainWindowGeometry").toByteArray()));
 #ifdef Q_OS_WIN
         if (QString::compare(settings()->get("ApplicationTheme").toString(), "dark") == 0) {
-            WinDarkmode::setDarkWinTitlebar(m_mainWindow->winId(), true);
+            WinDarkmode::setWindowDarkModeEnabled((HWND)m_mainWindow->winId(), true);
         } else {
-            WinDarkmode::setDarkWinTitlebar(m_mainWindow->winId(), false);
+            WinDarkmode::setWindowDarkModeEnabled((HWND)m_mainWindow->winId(), false);
         }
 #endif
         if(minimized)

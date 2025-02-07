@@ -73,7 +73,13 @@ bool ensureFilePathExists(QString filenamepath);
  * Creates all the folders in a path for the specified path
  * last segment of the path is treated as a folder name and is created!
  */
-bool ensureFolderPathExists(QString filenamepath);
+bool ensureFolderPathExists(const QFileInfo folderPath);
+
+/**
+ * Creates all the folders in a path for the specified path
+ * last segment of the path is treated as a folder name and is created!
+ */
+bool ensureFolderPathExists(const QString folderPathName);
 
 class copy {
    public:
@@ -154,5 +160,5 @@ QString getDesktopDir();
 
 // Overrides one folder with the contents of another, preserving items exclusive to the first folder
 // Equivalent to doing QDir::rename, but allowing for overrides
-bool overrideFolder(QString overwritten_path, QString override_path);
+bool mergeFolders(QString dstpath, QString srcpath);
 }

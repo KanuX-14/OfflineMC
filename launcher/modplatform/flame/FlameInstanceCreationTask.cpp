@@ -257,6 +257,7 @@ bool FlameCreationTask::createInstance()
 
     QString forgeVersion;
     QString fabricVersion;
+    QString neoforgeVersion;
     // TODO: is Quilt relevant here?
     for (auto& loader : m_pack.minecraft.modLoaders) {
         auto id = loader.id;
@@ -268,6 +269,11 @@ bool FlameCreationTask::createInstance()
         if (id.startsWith("fabric-")) {
             id.remove("fabric-");
             fabricVersion = id;
+            continue;
+        }
+        if (id.startsWith("neoforge-")) {
+            id.remove("neoforge-");
+            neoforgeVersion = id;
             continue;
         }
         logWarning(tr("Unknown mod loader in manifest: %1").arg(id));
@@ -300,6 +306,8 @@ bool FlameCreationTask::createInstance()
     }
     if (!fabricVersion.isEmpty())
         components->setComponentVersion("net.fabricmc.fabric-loader", fabricVersion);
+    if (!neoforgeVersion.isEmpty())
+        components->setComponentVersion("net.neoforged.neoforge", neoforgeVersion);
 
     if (m_instIcon != "default") {
         instance.setIconKey(m_instIcon);
@@ -335,9 +343,10 @@ bool FlameCreationTask::createInstance()
 
     m_mod_id_resolver = new Flame::FileResolvingTask(APPLICATION->network(), m_pack);
     connect(m_mod_id_resolver.get(), &Flame::FileResolvingTask::succeeded, this, [this, &loop] { idResolverSucceeded(loop); });
-    connect(m_mod_id_resolver.get(), &Flame::FileResolvingTask::failed, [&](QString reason) {
+    connect(m_mod_id_resolver.get(), &Flame::FileResolvingTask::failed, [this, &loop](QString reason) {
         m_mod_id_resolver.reset();
         setError(tr("Unable to resolve mod IDs:\n") + reason);
+        loop.exit();
     });
     connect(m_mod_id_resolver.get(), &Flame::FileResolvingTask::progress, this, &FlameCreationTask::setProgress);
     connect(m_mod_id_resolver.get(), &Flame::FileResolvingTask::status, this, &FlameCreationTask::setStatus);
@@ -419,7 +428,7 @@ void FlameCreationTask::setupDownloadJob(QEventLoop& loop)
         switch (result.type) {
             case Flame::File::Type::Folder: {
                 logWarning(tr("This 'Folder' may need extracting: %1").arg(relpath));
-                // fall-through intentional, we treat these as plain old mods and dump them wherever.
+                [[fallthrough]];
             }
             case Flame::File::Type::SingleFile:
             case Flame::File::Type::Mod: {
